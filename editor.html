@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>PDF Forge — Editor</title>
+<script src="libs/pdf.min.js"></script>
+<script src="libs/jspdf.umd.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#0a0a10;--s1:#131320;--s2:#1a1a28;--s3:#222233;
+  --bd:#2c2c42;--ac:#6c63ff;--acl:rgba(108,99,255,.13);--acg:rgba(108,99,255,.28);
+  --tx:#dcdcf0;--tx2:#8888b0;--mu:#4a4a70;
+  --red:#ff5f5f;--grn:#3dd68c;--yel:#f5c842;--blu:#58a6ff
+}
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--tx);
+  font:13px/1.4 system-ui,sans-serif}
+.app{display:flex;flex-direction:column;height:100vh}
+
+/* ── Topbar ── */
+.top{display:flex;align-items:center;height:48px;padding:0 12px;gap:8px;
+  background:var(--s1);border-bottom:1px solid var(--bd);flex-shrink:0;z-index:30}
+.brand{display:flex;align-items:center;gap:7px;margin-right:10px}
+.brand-logo{width:26px;height:26px;background:linear-gradient(135deg,var(--ac),#a78bfa);
+  border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:13px}
+.brand-n{font-size:14px;font-weight:700;color:#fff}
+.vsep{width:1px;height:20px;background:var(--bd);margin:0 4px}
+.fbadge{display:flex;align-items:center;gap:5px;padding:3px 9px;background:var(--s2);
+  border:1px solid var(--bd);border-radius:6px;font-size:11px;color:var(--tx2);
+  max-width:220px;overflow:hidden}
+.fbadge b{color:var(--tx);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tr{margin-left:auto;display:flex;align-items:center;gap:6px}
+.tbtn{display:flex;align-items:center;gap:4px;padding:5px 10px;background:var(--s2);
+  border:1px solid var(--bd);border-radius:6px;color:var(--tx);font:inherit;font-size:12px;
+  font-weight:500;cursor:pointer;white-space:nowrap;transition:.13s}
+.tbtn:hover{border-color:var(--ac);background:var(--acl)}
+.tbtn.pri{background:var(--ac);border-color:var(--ac);color:#fff}
+.tbtn.pri:hover{background:#7b72ff;box-shadow:0 0 14px var(--acg)}
+.tbtn:disabled{opacity:.35;cursor:not-allowed}
+
+/* ── Body ── */
+.body{display:flex;flex:1;overflow:hidden}
+
+/* ── Left sidebar ── */
+.lsb{width:188px;background:var(--s1);border-right:1px solid var(--bd);
+  overflow-y:auto;flex-shrink:0}
+.lsb::-webkit-scrollbar{width:3px}
+.lsb::-webkit-scrollbar-thumb{background:var(--bd)}
+.grp{padding:10px 7px 4px}
+.gl{font-size:10px;font-weight:600;color:var(--mu);text-transform:uppercase;
+  letter-spacing:.7px;padding:0 5px 6px}
+.si{display:flex;align-items:center;gap:7px;padding:7px 9px;border-radius:7px;
+  cursor:pointer;color:var(--tx2);transition:.12s;margin-bottom:1px;border:1px solid transparent;
+  background:none;width:100%;text-align:left;font:inherit;font-size:12px}
+.si:hover{background:var(--s2);color:var(--tx)}
+.si.act{background:var(--acl);border-color:rgba(108,99,255,.3);color:#a78bfa}
+.si .ic{font-size:14px;width:18px;text-align:center;flex-shrink:0}
+.sdiv{height:1px;background:var(--bd);margin:5px 7px}
+
+/* ── Canvas area ── */
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden;position:relative}
+
+/* toolbar */
+.ctb{display:flex;align-items:center;gap:5px;padding:6px 10px;
+  background:var(--s2);border-bottom:1px solid var(--bd);flex-shrink:0;flex-wrap:wrap}
+.cbtn{padding:4px 9px;background:var(--s3);border:1px solid var(--bd);border-radius:5px;
+  color:var(--tx2);font:inherit;font-size:12px;cursor:pointer;transition:.12s}
+.cbtn:hover{color:var(--tx);border-color:var(--ac)}
+.cbtn.act{background:var(--acl);border-color:var(--ac);color:#a78bfa}
+.csep{width:1px;height:16px;background:var(--bd);margin:0 2px}
+.zl{font-size:12px;color:var(--tx2);min-width:38px;text-align:center}
+.kbhint{font-size:10px;color:var(--mu);margin-left:auto}
+
+/* viewport */
+.vp{flex:1;overflow:auto;background:#060610;display:flex;
+  justify-content:center;padding:20px;position:relative}
+.vp::-webkit-scrollbar{width:7px;height:7px}
+.vp::-webkit-scrollbar-thumb{background:var(--bd);border-radius:4px}
+
+/* drop overlay */
+.dov{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;gap:12px;background:#060610;z-index:20}
+.dov.hidden{display:none}
+.dbox{border:2px dashed var(--bd);border-radius:13px;padding:32px 50px;text-align:center;
+  cursor:pointer;transition:.18s}
+.dbox:hover,.dbox.on{border-color:var(--ac);background:var(--acl)}
+.dbox h2{font-size:17px;font-weight:700;color:#fff;margin-bottom:5px}
+.dbox p{font-size:12px;color:var(--tx2)}
+.ubtn{margin-top:12px;padding:8px 20px;background:var(--ac);color:#fff;border:none;
+  border-radius:8px;font-size:13px;font-weight:600;cursor:pointer}
+.ubtn:hover{background:#7b72ff}
+
+/* pages */
+.pages{display:flex;flex-direction:column;align-items:center;gap:12px;
+  width:100%;max-width:1100px}
+
+/* single page wrapper — MUST be position:relative for children to stack */
+.pgw{position:relative;line-height:0;flex-shrink:0;
+  box-shadow:0 2px 24px rgba(0,0,0,.7);border-radius:2px}
+/* base PDF render */
+.pgw canvas.rc{display:block;border-radius:2px}
+/* draw canvas: pointer-events none, sits above render */
+.pgw canvas.dc{position:absolute;top:0;left:0;pointer-events:none;border-radius:2px}
+/* overlay div: captures all mouse events */
+.pgw .ov{position:absolute;top:0;left:0;width:100%;height:100%;border-radius:2px;
+  cursor:default}
+/* page number badge */
+.pgnum{position:absolute;bottom:6px;right:8px;font-size:10px;font-weight:600;
+  color:rgba(255,255,255,.45);pointer-events:none;text-shadow:0 1px 3px #000}
+
+/* text annotation */
+.tann{position:absolute;outline:none;background:rgba(255,245,0,.18);
+  border:1px dashed rgba(255,210,0,.5);padding:2px 4px;min-width:40px;
+  border-radius:2px;cursor:text;white-space:pre;z-index:10;
+  text-shadow:0 1px 4px rgba(0,0,0,.95)}
+
+/* page nav */
+.pnav{display:flex;align-items:center;gap:7px;padding:5px 10px;
+  background:var(--s2);border-top:1px solid var(--bd);flex-shrink:0}
+.pnbtn{padding:4px 10px;background:var(--s3);border:1px solid var(--bd);border-radius:5px;
+  color:var(--tx2);font:inherit;font-size:12px;cursor:pointer;transition:.12s}
+.pnbtn:hover:not(:disabled){color:var(--tx);border-color:var(--ac)}
+.pnbtn:disabled{opacity:.3;cursor:not-allowed}
+.pi{font-size:12px;color:var(--tx2);margin-left:auto}
+
+/* ── Right sidebar ── */
+.rsb{width:216px;background:var(--s1);border-left:1px solid var(--bd);
+  display:flex;flex-direction:column;flex-shrink:0;overflow-y:auto}
+.rsb::-webkit-scrollbar{width:3px}
+.rsb::-webkit-scrollbar-thumb{background:var(--bd)}
+.rtabs{display:flex;border-bottom:1px solid var(--bd)}
+.rtab{flex:1;padding:9px 4px;text-align:center;font-size:11px;font-weight:500;
+  cursor:pointer;color:var(--mu);border-bottom:2px solid transparent;transition:.12s}
+.rtab:hover{color:var(--tx)}
+.rtab.act{color:var(--ac);border-bottom-color:var(--ac)}
+.rp{display:none;padding:11px}
+.rp.act{display:block}
+.pl{font-size:10px;font-weight:600;color:var(--mu);text-transform:uppercase;
+  letter-spacing:.6px;margin-bottom:9px}
+.row{margin-bottom:8px}
+.row label{display:block;font-size:11px;color:var(--tx2);margin-bottom:3px}
+.sel,.inp{width:100%;background:var(--s2);border:1px solid var(--bd);border-radius:5px;
+  padding:5px 8px;color:var(--tx);font:inherit;font-size:12px;outline:none;transition:.12s}
+.sel:focus,.inp:focus{border-color:var(--ac)}
+.rr{display:flex;align-items:center;gap:6px}
+.rng{flex:1;accent-color:var(--ac)}
+.rv{font-size:11px;color:var(--tx2);min-width:30px;text-align:right}
+.cr{display:flex;align-items:center;gap:5px}
+.csw{width:26px;height:26px;border-radius:4px;border:2px solid var(--bd);
+  cursor:pointer;flex-shrink:0;padding:0}
+.chx{flex:1;background:var(--s2);border:1px solid var(--bd);border-radius:5px;
+  padding:4px 7px;color:var(--tx);font:11px monospace;outline:none}
+
+/* thumbnails */
+.th{border-radius:4px;overflow:hidden;margin-bottom:5px;border:2px solid transparent;
+  cursor:pointer;transition:.12s;position:relative;line-height:0}
+.th:hover{border-color:var(--ac)}
+.th.act{border-color:var(--ac);box-shadow:0 0 8px var(--acg)}
+.th canvas{width:100%;display:block}
+.thn{position:absolute;bottom:3px;right:4px;font-size:10px;font-weight:600;
+  color:rgba(255,255,255,.65);text-shadow:0 1px 3px #000}
+
+/* info */
+.ir{display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--bd)}
+.ir:last-child{border:none}
+.ik{font-size:11px;color:var(--mu)}
+.iv{font-size:11px;color:var(--tx);font-weight:500;text-align:right;
+  max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* modal */
+.mb{position:fixed;inset:0;background:rgba(0,0,0,.75);backdrop-filter:blur(4px);
+  z-index:100;display:flex;align-items:center;justify-content:center;
+  opacity:0;pointer-events:none;transition:.17s}
+.mb.open{opacity:1;pointer-events:all}
+.md{background:var(--s1);border:1px solid var(--bd);border-radius:12px;padding:20px;
+  width:390px;max-width:90vw;box-shadow:0 16px 48px rgba(0,0,0,.6);
+  transform:scale(.95);transition:.17s}
+.mb.open .md{transform:scale(1)}
+.md h3{font-size:14px;font-weight:700;margin-bottom:12px;color:#fff}
+.md label{display:block;font-size:11px;color:var(--tx2);margin:8px 0 3px}
+.mi{width:100%;background:var(--s2);border:1px solid var(--bd);border-radius:6px;
+  padding:7px 10px;color:var(--tx);font:inherit;font-size:12px;outline:none;transition:.12s}
+.mi:focus{border-color:var(--ac)}
+.ma{display:flex;gap:6px;justify-content:flex-end;margin-top:13px}
+.mbt{padding:6px 14px;border-radius:6px;font:inherit;font-size:12px;font-weight:600;
+  cursor:pointer;border:1px solid var(--bd);background:var(--s2);color:var(--tx)}
+.mbt.pri{background:var(--ac);border-color:var(--ac);color:#fff}
+.mbt:hover{opacity:.82}
+
+/* toast */
+.toast{position:fixed;bottom:16px;left:50%;transform:translateX(-50%) translateY(12px);
+  background:var(--s2);border:1px solid var(--bd);border-radius:8px;
+  padding:8px 14px;font-size:12px;font-weight:500;color:var(--tx);
+  opacity:0;transition:.2s;z-index:200;pointer-events:none;white-space:nowrap}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* loading bar */
+.loadbar{height:2px;background:var(--ac);width:0;transition:width .3s;
+  position:fixed;top:0;left:0;z-index:300;box-shadow:0 0 8px var(--ac)}
+
+.hidden{display:none!important}
+#fi{display:none}
+#fi2{display:none}
+#fi3{display:none}
+</style>
+</head>
+<body>
+<input type="file" id="fi"  accept=".pdf,application/pdf">
+<input type="file" id="fi2" accept=".pdf,application/pdf" multiple>
+<input type="file" id="fi3" accept="image/*" multiple>
+
+<div class="loadbar" id="loadbar"></div>
+
+<div class="app">
+  <!-- Topbar -->
+  <div class="top">
+    <div class="brand"><div class="brand-logo">📄</div><span class="brand-n">PDF Forge</span></div>
+    <div class="vsep"></div>
+    <div class="fbadge">📁 <b id="fname">No file open</b></div>
+    <div class="tr">
+      <button class="tbtn" id="btnUndo" disabled>↩ Undo</button>
+      <button class="tbtn" id="btnRedo" disabled>↪ Redo</button>
+      <div class="vsep"></div>
+      <button class="tbtn" id="btnOpen">📂 Open</button>
+      <button class="tbtn" id="btnPrint">🖨️ Print</button>
+      <button class="tbtn pri" id="btnSave">💾 Save PDF</button>
+    </div>
+  </div>
+
+  <div class="body">
+    <!-- Left sidebar -->
+    <div class="lsb">
+      <div class="grp">
+        <div class="gl">Tools</div>
+        <button class="si act" data-mode="select"><span class="ic">🖱️</span>Select</button>
+        <button class="si" data-mode="text">      <span class="ic">T</span>Add Text</button>
+        <button class="si" data-mode="highlight"> <span class="ic">🖊️</span>Highlight</button>
+        <button class="si" data-mode="draw">      <span class="ic">✏️</span>Freehand Draw</button>
+        <button class="si" data-mode="shape">     <span class="ic">⬜</span>Shapes</button>
+        <button class="si" data-mode="erase">     <span class="ic">🧹</span>Eraser</button>
+      </div>
+      <div class="sdiv"></div>
+      <div class="grp">
+        <div class="gl">Pages</div>
+        <button class="si" id="siRL"><span class="ic">↺</span>Rotate Left</button>
+        <button class="si" id="siRR"><span class="ic">↻</span>Rotate Right</button>
+        <button class="si" id="siDP"><span class="ic">🗑️</span>Delete Page</button>
+        <button class="si" id="siAP"><span class="ic">➕</span>Insert Blank</button>
+      </div>
+      <div class="sdiv"></div>
+      <div class="grp">
+        <div class="gl">Document</div>
+        <button class="si" id="siMrg"><span class="ic">🔗</span>Merge PDFs</button>
+        <button class="si" id="siWM"> <span class="ic">💧</span>Watermark</button>
+        <button class="si" id="siCmp"><span class="ic">🗜️</span>Compress</button>
+        <button class="si" id="siExt"><span class="ic">📤</span>Extract Pages</button>
+      </div>
+      <div class="sdiv"></div>
+      <div class="grp">
+        <div class="gl">Convert</div>
+        <button class="si" id="siP2I"><span class="ic">🖼️</span>PDF → Images</button>
+        <button class="si" id="siI2P"><span class="ic">📄</span>Images → PDF</button>
+      </div>
+    </div>
+
+    <!-- Canvas area -->
+    <div class="main">
+      <div class="ctb">
+        <button class="cbtn" id="btnZO">−</button>
+        <span class="zl" id="zl">100%</span>
+        <button class="cbtn" id="btnZI">+</button>
+        <button class="cbtn" id="btnFit">Fit</button>
+        <div class="csep"></div>
+        <button class="cbtn" id="btnZoom50">50%</button>
+        <button class="cbtn act" id="btnZoom100">100%</button>
+        <button class="cbtn" id="btnZoom150">150%</button>
+        <button class="cbtn" id="btnZoom200">200%</button>
+        <div class="csep"></div>
+        <span class="kbhint">V=select · T=text · D=draw · H=highlight · S=shape · E=erase · Ctrl+Z/S</span>
+      </div>
+
+      <div class="vp" id="vp">
+        <!-- Drop overlay -->
+        <div class="dov" id="dov">
+          <div class="dbox" id="dbox">
+            <div style="font-size:42px;margin-bottom:8px">📄</div>
+            <h2>Open a PDF to start editing</h2>
+            <p>Drag & drop a PDF file here</p>
+            <button class="ubtn" id="dboxBtn">Browse PDF File</button>
+          </div>
+        </div>
+        <div class="pages" id="pages"></div>
+      </div>
+
+      <div class="pnav">
+        <button class="pnbtn" id="btnPrev">← Prev</button>
+        <button class="pnbtn" id="btnNext">Next →</button>
+        <span class="pi" id="pi">Page 0 / 0</span>
+      </div>
+    </div>
+
+    <!-- Right sidebar -->
+    <div class="rsb">
+      <div class="rtabs">
+        <div class="rtab act" data-tab="props">Props</div>
+        <div class="rtab" data-tab="pages">Pages</div>
+        <div class="rtab" data-tab="info">Info</div>
+      </div>
+
+      <div class="rp act" id="tab-props">
+        <div class="pl">Text</div>
+        <div class="row">
+          <label>Font</label>
+          <select class="sel" id="pFont">
+            <option>Helvetica</option><option>Arial</option>
+            <option>Times New Roman</option><option>Courier New</option>
+            <option>Georgia</option><option>Verdana</option>
+          </select>
+        </div>
+        <div class="row">
+          <label>Size: <span id="pSizeV">16</span>px</label>
+          <input type="range" class="rng" id="pSize" min="8" max="72" value="16">
+        </div>
+        <div class="row">
+          <label>Color</label>
+          <div class="cr">
+            <input type="color" class="csw" id="pTC" value="#ffff00">
+            <input type="text"  class="chx" id="pTH" value="#FFFF00" maxlength="7">
+          </div>
+        </div>
+        <div style="height:8px"></div>
+        <div class="pl">Drawing</div>
+        <div class="row">
+          <label>Stroke Color</label>
+          <div class="cr">
+            <input type="color" class="csw" id="pSC" value="#6c63ff">
+            <input type="text"  class="chx" id="pSH" value="#6C63FF" maxlength="7">
+          </div>
+        </div>
+        <div class="row">
+          <label>Width: <span id="pSWV">3</span>px</label>
+          <input type="range" class="rng" id="pSW" min="1" max="30" value="3">
+        </div>
+        <div class="row">
+          <label>Opacity: <span id="pOpV">100</span>%</label>
+          <input type="range" class="rng" id="pOp" min="10" max="100" value="100">
+        </div>
+        <div class="row">
+          <label>Shape</label>
+          <select class="sel" id="pShape">
+            <option value="rect">Rectangle</option>
+            <option value="circle">Circle</option>
+            <option value="line">Line</option>
+            <option value="arrow">Arrow</option>
+          </select>
+        </div>
+        <div style="height:8px"></div>
+        <div class="pl">Highlight Color</div>
+        <div class="row">
+          <div class="cr">
+            <input type="color" class="csw" id="pHC" value="#facc15">
+            <input type="text"  class="chx" id="pHH" value="#FACC15" maxlength="7">
+          </div>
+        </div>
+      </div>
+
+      <div class="rp" id="tab-pages">
+        <div id="thumbs">
+          <p style="font-size:11px;color:var(--mu);text-align:center;padding:18px 0">
+            Open a PDF to see pages</p>
+        </div>
+      </div>
+
+      <div class="rp" id="tab-info">
+        <div class="pl">Document</div>
+        <div class="ir"><span class="ik">File</span>  <span class="iv" id="iFile">—</span></div>
+        <div class="ir"><span class="ik">Pages</span> <span class="iv" id="iPages">—</span></div>
+        <div class="ir"><span class="ik">Size</span>  <span class="iv" id="iSize">—</span></div>
+        <div class="ir"><span class="ik">Zoom</span>  <span class="iv" id="iZoom">100%</span></div>
+        <div class="ir"><span class="ik">Mode</span>  <span class="iv" id="iMode">select</span></div>
+        <div class="ir"><span class="ik">Annotations</span><span class="iv" id="iAnns">0</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Watermark Modal -->
+<div class="mb" id="wmMod">
+  <div class="md">
+    <h3>💧 Add Watermark</h3>
+    <label>Text</label>
+    <input class="mi" id="wmTxt" value="CONFIDENTIAL">
+    <label>Opacity: <span id="wmOpV">20</span>%</label>
+    <input type="range" class="rng" id="wmOp" min="5" max="80" value="20"
+      oninput="document.getElementById('wmOpV').textContent=this.value">
+    <label>Color</label>
+    <div class="cr" style="margin-top:4px">
+      <input type="color" class="csw" id="wmCol" value="#ff0000">
+      <span style="font-size:11px;color:var(--tx2)">Diagonal stamp on all pages</span>
+    </div>
+    <label>Font Size (auto if 0)</label>
+    <input class="mi" id="wmSz" type="number" value="0" min="0" max="200">
+    <div class="ma">
+      <button class="mbt" id="wmCan">Cancel</button>
+      <button class="mbt pri" id="wmApp">Apply Watermark</button>
+    </div>
+  </div>
+</div>
+
+<!-- Extract Modal -->
+<div class="mb" id="exMod">
+  <div class="md">
+    <h3>✂️ Extract / Split Pages</h3>
+    <label>Page range (e.g. 1-3, 5, 7-9)</label>
+    <input class="mi" id="exRng" placeholder="e.g. 1-3,5">
+    <label style="margin-top:10px;color:var(--tx2);font-size:11px">
+      Leave blank to split into individual pages</label>
+    <div class="ma">
+      <button class="mbt" id="exCan">Cancel</button>
+      <button class="mbt pri" id="exApp">Extract & Download</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script src="editor.js"></script>
+</body>
+</html>
